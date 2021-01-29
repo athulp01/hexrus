@@ -43,9 +43,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             hexrus.width = rects[0].width;
             hexrus.height = rects[0].height;
             let col_count = ((rects[0].width - 1) / 3) as usize;
-            hexrus.col_size = col_count as u16;
+            hexrus.col_count = col_count as u16;
             let hex_col_width = vec![Constraint::Length(2); col_count];
-            let chacol_countdth = vec![Constraint::Length(1); col_count];
+            let char_col_width = vec![Constraint::Length(1); col_count];
 
             let hex_rows = editor::build_hex_rows(
                 hexrus.bytes,
