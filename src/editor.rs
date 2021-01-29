@@ -1,23 +1,20 @@
+#[allow(dead_code)]
 use tui::widgets::TableState;
+use termion::event::Key;
 use tui::{
-    style::{Color, Modifier, Style},
-    widgets::{Block, Borders, Cell, Gauge, Row, Table},
+    style::{Style, Modifier},
+    widgets::{Cell, Row},
 };
 
 pub struct Editor<'a> {
     pub cursor_pos: usize,
     pub width: u16,
     pub height: u16,
-    pub col_size: u16,
-    pub items: &'a Vec<u8>,
+    pub col_count: u16,
+    pub bytes: &'a Vec<u8>,
     pub state: TableState,
-}
-
-pub enum Direction {
-    LEFT,
-    RIGHT,
-    DOWN,
-    UP,
+    pub select_style: Style,
+    pub normal_style: Style
 }
 
 impl<'a> Editor<'a> {
@@ -27,49 +24,53 @@ impl<'a> Editor<'a> {
             state: TableState::default(),
             width: 0,
             height: 0,
-            col_size: 0,
-            items: items,
+            col_count: 0,
+            bytes: items,
+            select_style: Style::default().add_modifier(Modifier::REVERSED),
+            normal_style: Style::default()
         }
     }
 
-    pub fn move_cursor(&mut self, direction: Direction) {
+    pub fn move_cursor(&mut self, direction: Key) {
         match direction {
-            Direction::LEFT => {
+            Key::Left => {
                 self.cursor_pos = if self.cursor_pos == 0 {
                     0
                 } else {
                     self.cursor_pos - 1
                 };
             }
-            Direction::RIGHT => {
-                self.cursor_pos = if self.cursor_pos >= self.items.len() - 1 {
+            Key::Right => {
+                self.cursor_pos = if self.cursor_pos >= self.bytes.len() - 1 {
                     self.cursor_pos
                 } else {
                     self.cursor_pos + 1
                 };
             }
-            Direction::DOWN => {
+            Key::Down => {
                 self.cursor_pos =
-                    if self.cursor_pos + self.col_size as usize >= self.items.len() - 1 {
+                    if self.cursor_pos + self.col_count as usize >= self.bytes.len() - 1 {
                         self.cursor_pos
                     } else {
-                        self.cursor_pos + self.col_size as usize
+                        self.cursor_pos + self.col_count as usize
                     };
             }
-            Direction::UP => {
-                self.cursor_pos = if self.cursor_pos < self.col_size as usize {
+            Key::Up => {
+                self.cursor_pos = if self.cursor_pos < self.col_count as usize {
                     0
                 } else {
-                    self.cursor_pos - self.col_size as usize
+                    self.cursor_pos - self.col_count as usize
                 };
             }
+
+            _ => {}
         }
         self.state
-            .select(Some(self.cursor_pos / self.col_size as usize));
+            .select(Some(self.cursor_pos / self.col_count as usize));
     }
 }
 
-fn build_hex_rows(
+pub fn build_hex_rows(
     items: &Vec<u8>,
     cursor_pos: usize,
     width: u16,
@@ -106,7 +107,7 @@ pub fn build_ascii_rows(
     select_style: Style,
     normal_style: Style,
 ) -> Vec<Row> {
-    let col_size = (width - 1) as usize;
+    let col_size = ((width - 1) / 3) as usize;
     let mut ascii_rows: Vec<Row> = Vec::new();
 
     for r_idx in 0..(items.len() as f32 / col_size as f32).ceil() as usize {
@@ -115,7 +116,15 @@ pub fn build_ascii_rows(
             let idx = r_idx * col_size + c_idx;
             char_cells.push(match idx {
                 i if i >= items.len() => Cell::from(" ").style(normal_style),
-                _ => Cell::from(format!("{}", items[idx] as char)).style(if idx == cursor_pos {
+                _ => Cell::from(format!(
+                    "{}",
+                    if items[idx].is_ascii_control() {
+                        '.'.to_owned()
+                    } else {
+                        items[idx] as char
+                    }
+                ))
+                .style(if idx == cursor_pos {
                     select_style
                 } else {
                     normal_style
