@@ -1,8 +1,8 @@
+use termion::event::Key;
 #[allow(dead_code)]
 use tui::widgets::TableState;
-use termion::event::Key;
 use tui::{
-    style::{Style, Modifier},
+    style::{Modifier, Style},
     widgets::{Cell, Row},
 };
 
@@ -13,8 +13,6 @@ pub struct Editor<'a> {
     pub col_count: u16,
     pub bytes: &'a Vec<u8>,
     pub state: TableState,
-    pub select_style: Style,
-    pub normal_style: Style
 }
 
 impl<'a> Editor<'a> {
@@ -26,8 +24,6 @@ impl<'a> Editor<'a> {
             height: 0,
             col_count: 0,
             bytes: items,
-            select_style: Style::default().add_modifier(Modifier::REVERSED),
-            normal_style: Style::default()
         }
     }
 
@@ -54,6 +50,7 @@ impl<'a> Editor<'a> {
                     } else {
                         self.cursor_pos + self.col_count as usize
                     };
+                self.state.select(Some(self.state.selected().unwrap_or(0) + 1));
             }
             Key::Up => {
                 self.cursor_pos = if self.cursor_pos < self.col_count as usize {
@@ -61,26 +58,21 @@ impl<'a> Editor<'a> {
                 } else {
                     self.cursor_pos - self.col_count as usize
                 };
+                self.state.select(Some(self.state.selected().unwrap() - 1));
             }
 
             _ => {}
         }
-        self.state
-            .select(Some(self.cursor_pos / self.col_count as usize));
     }
 }
 
-pub fn build_hex_rows(
-    items: &Vec<u8>,
-    cursor_pos: usize,
-    width: u16,
-    select_style: Style,
-    normal_style: Style,
-) -> Vec<Row> {
+pub fn build_hex_rows(items: &Vec<u8>, cursor_pos: usize, width: u16, start: usize) -> Vec<Row> {
     let col_size = ((width - 1) / 3) as usize;
     let mut hex_rows: Vec<Row> = Vec::new();
+    let select_style = Style::default().add_modifier(Modifier::REVERSED);
+    let normal_style = Style::default();
 
-    for r_idx in 0..(items.len() as f32 / col_size as f32).ceil() as usize {
+    for r_idx in start..1000 {
         let mut hex_cells: Vec<Cell> = Vec::new();
         for c_idx in 0..col_size {
             let idx = r_idx * col_size + c_idx;
@@ -100,17 +92,13 @@ pub fn build_hex_rows(
     hex_rows
 }
 
-pub fn build_ascii_rows(
-    items: &Vec<u8>,
-    cursor_pos: usize,
-    width: u16,
-    select_style: Style,
-    normal_style: Style,
-) -> Vec<Row> {
+pub fn build_ascii_rows(items: &Vec<u8>, cursor_pos: usize, width: u16, start: usize) -> Vec<Row> {
+    let select_style = Style::default().add_modifier(Modifier::REVERSED);
+    let normal_style = Style::default();
     let col_size = ((width - 1) / 3) as usize;
     let mut ascii_rows: Vec<Row> = Vec::new();
 
-    for r_idx in 0..(items.len() as f32 / col_size as f32).ceil() as usize {
+    for r_idx in start..1000 {
         let mut char_cells: Vec<Cell> = Vec::new();
         for c_idx in 0..col_size {
             let idx = r_idx * col_size + c_idx;

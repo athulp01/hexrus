@@ -1,12 +1,11 @@
 mod editor;
-mod event;
 
 use editor::Editor;
-use event::{Event, Events};
 use std::env;
+use std::error::Error;
 use std::fs;
-use std::{error::Error, io};
-use termion::{event::Key, input::MouseTerminal, raw::IntoRawMode, screen::AlternateScreen};
+use std::io;
+use termion::{event::Key, raw::IntoRawMode, screen::AlternateScreen};
 use tui::{
     backend::TermionBackend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -14,6 +13,8 @@ use tui::{
     widgets::{Block, Borders, Gauge, Paragraph, Row, Table},
     Terminal,
 };
+
+use termion::input::TermRead;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
@@ -24,14 +25,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     let backend = TermionBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let events = Events::new();
-
     let mut hexrus = Editor::from(&data);
-    let selected_style = Style::default().add_modifier(Modifier::REVERSED);
-    let normal_style = Style::default();
 
+    let mut start: usize = 0;
     // Input
     loop {
+        let stdin = io::stdin();
         terminal.draw(|f| {
             let size = f.size();
             let rects = Layout::default()
@@ -47,21 +46,25 @@ fn main() -> Result<(), Box<dyn Error>> {
             let hex_col_width = vec![Constraint::Length(2); col_count];
             let char_col_width = vec![Constraint::Length(1); col_count];
 
-            let hex_rows = editor::build_hex_rows(
-                hexrus.bytes,
-                hexrus.cursor_pos,
-                hexrus.width,
-                selected_style,
-                normal_style,
-            );
+            if hexrus.state.offset > 10 && start != 0{
+                let select = hexrus.state.selected().unwrap() - hexrus.state.offset;
+                start += hexrus.state.offset;
+                hexrus.state.offset = 0;
+                hexrus.state.select(Some(select));
+            }
 
-            let char_rows: Vec<Row> = editor::build_ascii_rows(
-                hexrus.bytes,
-                hexrus.cursor_pos,
-                rects[0].width,
-                selected_style,
-                normal_style,
-            );
+            if hexrus.state.selected().unwrap_or(11) < 10 && hexrus.state.offset <= 1 && start != 0{
+                let select = if start > 1000 {start - 1000} else {0};
+                hexrus.state.offset =start + hexrus.state.offset;
+                hexrus.state.select(Some(1 + hexrus.state.selected().unwrap() + hexrus.state.offset));
+                start = select;
+            } 
+
+            let hex_rows =
+                editor::build_hex_rows(hexrus.bytes, hexrus.cursor_pos, hexrus.width, start);
+
+            let char_rows: Vec<Row> =
+                editor::build_ascii_rows(hexrus.bytes, hexrus.cursor_pos, rects[0].width, start);
 
             let ratio = (hexrus.cursor_pos + 1) as f64 / data.len() as f64;
             let gauge = Gauge::default()
@@ -96,15 +99,16 @@ fn main() -> Result<(), Box<dyn Error>> {
             f.render_widget(byte_status, status_layout[1]);
         })?;
 
-        if let Event::Input(key) = events.next()? {
-            match key {
-                Key::Char('q') => {
+        for evt in stdin.keys() {
+            if let Ok(key) = evt {
+                match key {
+                    Key::Char('q') => {
+                        return Ok(())
+                    }
+                    _ => {hexrus.move_cursor(key);
                     break;
                 }
-                _ => {hexrus.move_cursor(key)}
             }
-        };
-    }
-
-    Ok(())
+        }
+    }}
 }

@@ -1,0 +1,3 @@
+[submodule "src/tui"]
+	path = src/tui
+	url = git@github.com:athulp01/tui-rs.git
