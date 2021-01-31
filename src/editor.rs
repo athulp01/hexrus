@@ -2,7 +2,7 @@ use termion::event::Key;
 #[allow(dead_code)]
 use tui::widgets::TableState;
 use tui::{
-    style::{Modifier, Style},
+    style::{Color,Modifier, Style},
     widgets::{Cell, Row},
 };
 
@@ -71,7 +71,7 @@ impl<'a> Editor<'a> {
 pub fn build_hex_rows(items: &memmap::Mmap, cursor_pos: usize, width: u16, start: usize) -> Vec<Row> {
     let col_size = ((width - 1) / 3) as usize;
     let mut hex_rows: Vec<Row> = Vec::new();
-    let select_style = Style::default().add_modifier(Modifier::REVERSED);
+    let select_style = Style::default().bg(Color::Red).fg(Color::Black);
     let normal_style = Style::default();
 
     for r_idx in start..1000 {
@@ -95,7 +95,7 @@ pub fn build_hex_rows(items: &memmap::Mmap, cursor_pos: usize, width: u16, start
 }
 
 pub fn build_ascii_rows(items: &memmap::Mmap, cursor_pos: usize, width: u16, start: usize) -> Vec<Row> {
-    let select_style = Style::default().add_modifier(Modifier::REVERSED);
+    let select_style = Style::default().bg(Color::Red).fg(Color::Black);
     let normal_style = Style::default();
     let col_size = ((width - 1) / 3) as usize;
     let mut ascii_rows: Vec<Row> = Vec::new();

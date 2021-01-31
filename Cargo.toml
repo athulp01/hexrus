@@ -11,5 +11,3 @@ tui = { path = "./src/tui" }
 termion = "1.5"
 memmap = "0.7.0"
 
-[profile.release]
-debug = true

@@ -1,9 +1,9 @@
 mod editor;
 
-use memmap::MmapOptions;
 use editor::Editor;
-use std::{env, error::Error,fs, path::Path, io};
-use termion::{input::TermRead,event::Key, raw::IntoRawMode, screen::AlternateScreen};
+use memmap::MmapOptions;
+use std::{env, error::Error, fs, io, path::Path};
+use termion::{event::Key, input::TermRead, raw::IntoRawMode, screen::AlternateScreen};
 use tui::{
     backend::TermionBackend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -11,7 +11,6 @@ use tui::{
     widgets::{Block, Borders, Gauge, Paragraph, Row, Table},
     Terminal,
 };
-
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
@@ -44,19 +43,22 @@ fn main() -> Result<(), Box<dyn Error>> {
             let hex_col_width = vec![Constraint::Length(2); col_count];
             let char_col_width = vec![Constraint::Length(1); col_count];
 
-            if hexrus.state.offset > 10 && start != 0{
+            if hexrus.state.offset > 10 && start != 0 {
                 let select = hexrus.state.selected().unwrap() - hexrus.state.offset;
                 start += hexrus.state.offset;
                 hexrus.state.offset = 0;
                 hexrus.state.select(Some(select));
             }
 
-            if hexrus.state.selected().unwrap_or(11) < 10 && hexrus.state.offset <= 1 && start != 0{
-                let select = if start > 1000 {start - 1000} else {0};
-                hexrus.state.offset =start + hexrus.state.offset;
-                hexrus.state.select(Some(1 + hexrus.state.selected().unwrap() + hexrus.state.offset));
+            if hexrus.state.selected().unwrap_or(11) < 10 && hexrus.state.offset <= 1 && start != 0
+            {
+                let select = if start > 1000 { start - 1000 } else { 0 };
+                hexrus.state.offset = start + hexrus.state.offset;
+                hexrus.state.select(Some(
+                    1 + hexrus.state.selected().unwrap() + hexrus.state.offset,
+                ));
                 start = select;
-            } 
+            }
 
             let hex_rows =
                 editor::build_hex_rows(hexrus.bytes, hexrus.cursor_pos, hexrus.width, start);
@@ -75,7 +77,14 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .ratio(ratio);
             let status_rect = Rect::new(0, size.height - 1, size.width, 1);
             let status_layout = Layout::default()
-                .constraints([Constraint::Percentage(30),Constraint::Percentage(40), Constraint::Percentage(30)].as_ref())
+                .constraints(
+                    [
+                        Constraint::Percentage(30),
+                        Constraint::Percentage(40),
+                        Constraint::Percentage(30),
+                    ]
+                    .as_ref(),
+                )
                 .direction(Direction::Horizontal)
                 .split(status_rect);
             let hex_table = Table::new(hex_rows)
@@ -87,13 +96,23 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .block(Block::default().borders(Borders::ALL).title("ASCII"))
                 .widths(&char_col_width)
                 .column_spacing(0);
-            let byte_status = Paragraph::new(format!("{}/{} bytes", hexrus.cursor_pos, data.len()))
+
+            let byte_status = Paragraph::new(format!("{:#X}/{:#X} bytes", hexrus.cursor_pos, data.len()))
                 .alignment(Alignment::Center);
-            let file_name = Path::new(&args[1]).file_name().unwrap().to_str().unwrap().to_owned();
-            let mut file_name = file_name[..status_layout[0].width as usize - 5].to_owned();
-            file_name.push_str("...");
-            let filename_status = Paragraph::new(file_name)
-                .alignment(Alignment::Left);
+            let file_name = Path::new(&args[1])
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_owned();
+            let file_name = if file_name.len() > status_layout[0].width as usize - 1 {
+                let mut tmp = file_name[..status_layout[0].width as usize - 5].to_owned();
+                tmp.push_str("...");
+                tmp
+            } else {
+                file_name
+            };
+            let filename_status = Paragraph::new(file_name).alignment(Alignment::Left);
 
             f.render_stateful_widget(hex_table, rects[0], &mut hexrus.state);
             f.render_stateful_widget(char_table, rects[1], &mut hexrus.state);
@@ -105,13 +124,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         for evt in stdin.keys() {
             if let Ok(key) = evt {
                 match key {
-                    Key::Char('q') => {
-                        return Ok(())
+                    Key::Char('q') => return Ok(()),
+                    _ => {
+                        hexrus.move_cursor(key);
+                        break;
                     }
-                    _ => {hexrus.move_cursor(key);
-                    break;
                 }
             }
         }
-    }}
+    }
 }
