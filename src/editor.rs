@@ -11,12 +11,12 @@ pub struct Editor<'a> {
     pub width: u16,
     pub height: u16,
     pub col_count: u16,
-    pub bytes: &'a Vec<u8>,
+    pub bytes: &'a memmap::Mmap, 
     pub state: TableState,
 }
 
 impl<'a> Editor<'a> {
-    pub fn from(items: &'a Vec<u8>) -> Editor<'a> {
+    pub fn from(items: &'a memmap::Mmap) -> Editor<'a> {
         Editor {
             cursor_pos: 0,
             state: TableState::default(),
@@ -29,6 +29,7 @@ impl<'a> Editor<'a> {
 
     pub fn move_cursor(&mut self, direction: Key) {
         match direction {
+            //TODO: Fix
             Key::Left => {
                 self.cursor_pos = if self.cursor_pos == 0 {
                     0
@@ -36,6 +37,7 @@ impl<'a> Editor<'a> {
                     self.cursor_pos - 1
                 };
             }
+            //TODO: Fix
             Key::Right => {
                 self.cursor_pos = if self.cursor_pos >= self.bytes.len() - 1 {
                     self.cursor_pos
@@ -48,17 +50,17 @@ impl<'a> Editor<'a> {
                     if self.cursor_pos + self.col_count as usize >= self.bytes.len() - 1 {
                         self.cursor_pos
                     } else {
+                        self.state.select(Some(self.state.selected().unwrap_or(0) + 1));
                         self.cursor_pos + self.col_count as usize
                     };
-                self.state.select(Some(self.state.selected().unwrap_or(0) + 1));
             }
             Key::Up => {
                 self.cursor_pos = if self.cursor_pos < self.col_count as usize {
                     0
                 } else {
+                    self.state.select(Some(self.state.selected().unwrap() - 1));
                     self.cursor_pos - self.col_count as usize
                 };
-                self.state.select(Some(self.state.selected().unwrap() - 1));
             }
 
             _ => {}
@@ -66,7 +68,7 @@ impl<'a> Editor<'a> {
     }
 }
 
-pub fn build_hex_rows(items: &Vec<u8>, cursor_pos: usize, width: u16, start: usize) -> Vec<Row> {
+pub fn build_hex_rows(items: &memmap::Mmap, cursor_pos: usize, width: u16, start: usize) -> Vec<Row> {
     let col_size = ((width - 1) / 3) as usize;
     let mut hex_rows: Vec<Row> = Vec::new();
     let select_style = Style::default().add_modifier(Modifier::REVERSED);
@@ -92,7 +94,7 @@ pub fn build_hex_rows(items: &Vec<u8>, cursor_pos: usize, width: u16, start: usi
     hex_rows
 }
 
-pub fn build_ascii_rows(items: &Vec<u8>, cursor_pos: usize, width: u16, start: usize) -> Vec<Row> {
+pub fn build_ascii_rows(items: &memmap::Mmap, cursor_pos: usize, width: u16, start: usize) -> Vec<Row> {
     let select_style = Style::default().add_modifier(Modifier::REVERSED);
     let normal_style = Style::default();
     let col_size = ((width - 1) / 3) as usize;

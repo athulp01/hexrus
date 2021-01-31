@@ -1,11 +1,9 @@
 mod editor;
 
+use memmap::MmapOptions;
 use editor::Editor;
-use std::env;
-use std::error::Error;
-use std::fs;
-use std::io;
-use termion::{event::Key, raw::IntoRawMode, screen::AlternateScreen};
+use std::{env, error::Error,fs, path::Path, io};
+use termion::{input::TermRead,event::Key, raw::IntoRawMode, screen::AlternateScreen};
 use tui::{
     backend::TermionBackend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -14,11 +12,11 @@ use tui::{
     Terminal,
 };
 
-use termion::input::TermRead;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
-    let data = fs::read(args[1].clone()).expect("Unable to read file");
+    let file = fs::File::open(args[1].clone())?;
+    let data = unsafe { MmapOptions::new().map(&file)? };
     // Terminal initialization
     let stdout = io::stdout().into_raw_mode()?;
     let stdout = AlternateScreen::from(stdout);
@@ -77,8 +75,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .ratio(ratio);
             let status_rect = Rect::new(0, size.height - 1, size.width, 1);
             let status_layout = Layout::default()
-                .constraints([Constraint::Percentage(70), Constraint::Percentage(30)].as_ref())
-                .margin(0)
+                .constraints([Constraint::Percentage(30),Constraint::Percentage(40), Constraint::Percentage(30)].as_ref())
                 .direction(Direction::Horizontal)
                 .split(status_rect);
             let hex_table = Table::new(hex_rows)
@@ -92,11 +89,17 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .column_spacing(0);
             let byte_status = Paragraph::new(format!("{}/{} bytes", hexrus.cursor_pos, data.len()))
                 .alignment(Alignment::Center);
+            let file_name = Path::new(&args[1]).file_name().unwrap().to_str().unwrap().to_owned();
+            let mut file_name = file_name[..status_layout[0].width as usize - 5].to_owned();
+            file_name.push_str("...");
+            let filename_status = Paragraph::new(file_name)
+                .alignment(Alignment::Left);
 
             f.render_stateful_widget(hex_table, rects[0], &mut hexrus.state);
             f.render_stateful_widget(char_table, rects[1], &mut hexrus.state);
-            f.render_widget(gauge, status_layout[0]);
-            f.render_widget(byte_status, status_layout[1]);
+            f.render_widget(filename_status, status_layout[0]);
+            f.render_widget(gauge, status_layout[1]);
+            f.render_widget(byte_status, status_layout[2]);
         })?;
 
         for evt in stdin.keys() {
